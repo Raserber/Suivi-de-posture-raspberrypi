@@ -67,27 +67,41 @@ apt-get install -y git curl wget htop vim net-tools
 # 6. Configuration de l'environnement Python et des dépendances
 print_step "Installation des dépendances Python et création d'un environnement virtuel"
 apt-get install -y python3 python3-venv python3-pip python3-dev
-python3 -m venv /home/pi/myenv
-source /home/pi/myenv/bin/activate
+python3 -m venv venv
+source $HOME/venv/bin/activate
 
 # 7. Installation des paquets Pip (exemple : numpy et requests)
 print_step "Installation des paquets Pip"
 pip install --upgrade pip
-pip install numpy requests
+pip install bluepy paho.mqtt.client
 
-# 8. Désactivation du Wi-Fi après installation
+# 8. Installation et configuration de Mosquitto (broker MQTT)
+print_step "Installation et configuration de Mosquitto"
+apt-get install -y mosquitto mosquitto-clients
+
+# Configuration de Mosquitto pour écouter sur toutes les interfaces (0.0.0.0) et sans authentification
+cat > /etc/mosquitto/mosquitto.conf <<EOF
+listener 1883 0.0.0.0
+allow_anonymous true
+EOF
+
+# Redémarrer Mosquitto pour appliquer la configuration
+systemctl restart mosquitto
+systemctl enable mosquitto
+
+# 9. Désactivation du Wi-Fi après installation
 print_step "Désactivation du Wi-Fi"
 rfkill block wifi
 ifconfig wlan0 down
 
-# 9. Configuration du service gateway.service
+# 10. Configuration du service gateway.service
 print_step "Configuration du service gateway.service"
 cp $(dirname "$0")/gateway.service /etc/systemd/system/
 systemctl daemon-reload
 systemctl enable gateway.service
 systemctl start gateway.service
 
-# 10. Désactivation définitive du Wi-Fi
+# 11. Désactivation définitive du Wi-Fi
 print_step "Désactivation définitive du Wi-Fi"
 echo "blacklist brcmfmac" | tee -a /etc/modprobe.d/blacklist-wifi.conf
 echo "blacklist brcmutil" | tee -a /etc/modprobe.d/blacklist-wifi.conf

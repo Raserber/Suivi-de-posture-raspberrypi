@@ -3,7 +3,7 @@ Description=Gateway BLE vers MQTT
 After=network.target
 
 [Service]
-ExecStart=/home/admin/vv/bin/python /home/admin/gateway.py
+ExecStart=$HOME/venv/bin/python $HOME/passerelle.py
 Restart=always
 RestartSec=3
 
