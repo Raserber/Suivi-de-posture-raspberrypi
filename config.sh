@@ -4,11 +4,13 @@
 # Configuration post-installation pour Raspbian
 # =============================================
 
+dossierInstallation = "/home/admin/"
+
 # Fonction pour afficher les étapes
 print_step() {
-    echo "----------------------------------------"
-    echo "[Étape] $1"
-    echo "----------------------------------------"
+    echo -e "\033[32m----------------------------------------"
+    echo -e "[Étape] $1"
+    echo -e "----------------------------------------\033[0m"
 }
 
 # Fonction pour demander le réseau Wi-Fi et se connecter
@@ -19,20 +21,13 @@ connect_wifi() {
         echo
 
         # Configuration Wi-Fi
-        cat > /etc/wpa_supplicant/wpa_supplicant.conf <<EOF
-ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev
-update_config=1
-country=FR
+        sudo raspi-config nonint do_wifi_ssid_passphrase $ssid "$password"
 
-network={
-    ssid="$ssid"
-    psk="$password"
-}
-EOF
+
 
         # Redémarrer l'interface Wi-Fi
         wpa_cli -i wlan0 reconfigure
-        sleep 10
+        sleep 5
 
         # Vérifier la connexion
         if ping -c 4 google.com &> /dev/null; then
@@ -44,38 +39,55 @@ EOF
     done
 }
 
-# 1. Mise à jour du système et des paquets
+# 1. Vérifier execution en tant que sudoer
+if [ "$UID" -ne "0" ]
+then
+
+        echo -e "\033[31mErreur : Vous devez être root (sudo) !\033[0m"
+        echo -e "-> sudo bash ./config.sh"
+        echo -e "Sortie ..."
+        exit
+fi
+
+# 2. Configuration du swap pour optimiser les performances
+print_step "Optimisation du swap"
+dphys-swapfile swapoff
+sed -i 's/CONF_SWAPSIZE=100/CONF_SWAPSIZE=1024/' /etc/dphys-swapfile
+dphys-swapfile setup
+dphys-swapfile swapon
+
+# 3. Activation du Wi-Fi et connexion
+print_step "Activation du Wi-Fi et connexion"
+rfkill unblock wifi
+connect_wifi
+
+# 4. Mise à jour du système et des paquets
 print_step "Mise à jour du système et des paquets"
 apt-get update -y && apt-get upgrade -y
 apt-get autoremove -y
 apt-get clean
 
-# 2. Configuration de la locale et du fuseau horaire
+# 5. Configuration de la locale et du fuseau horaire
 print_step "Configuration de la locale et du fuseau horaire"
 raspi-config nonint do_change_locale fr_FR.UTF-8
 raspi-config nonint do_change_timezone Europe/Paris
 
-# 4. Activation du Wi-Fi et connexion
-print_step "Activation du Wi-Fi et connexion"
-rfkill unblock wifi
-connect_wifi
-
-# 5. Installation des outils essentiels
+# 6. Installation des outils essentiels
 print_step "Installation des outils essentiels (git, curl, htop, etc.)"
 apt-get install -y git curl wget htop vim net-tools
 
-# 6. Configuration de l'environnement Python et des dépendances
+# 7. Configuration de l'environnement Python et des dépendances
 print_step "Installation des dépendances Python et création d'un environnement virtuel"
-apt-get install -y python3 python3-venv python3-pip python3-dev
-python3 -m venv venv
-source $HOME/venv/bin/activate
+apt-get install -y python3 python3-venv python3-pip python3-dev libglib2.0-dev
+python3 -m venv $dossierInstallation/venv
+source $dossierInstallation/venv/bin/activate
 
-# 7. Installation des paquets Pip (exemple : numpy et requests)
+# 8. Installation des paquets Pip (exemple : numpy et requests)
 print_step "Installation des paquets Pip"
-pip install --upgrade pip
-pip install bluepy paho.mqtt.client
+sudo $dossierInstallation/venv/bin/pip install --upgrade pip
+sudo $dossierInstallation/venv/bin/pip install bluepy paho.mqtt
 
-# 8. Installation et configuration de Mosquitto (broker MQTT)
+# 9. Installation et configuration de Mosquitto (broker MQTT)
 print_step "Installation et configuration de Mosquitto"
 apt-get install -y mosquitto mosquitto-clients
 
@@ -89,39 +101,28 @@ EOF
 systemctl restart mosquitto
 systemctl enable mosquitto
 
-# 9. Désactivation du Wi-Fi après installation
+# 10. Désactivation du Wi-Fi après installation
 print_step "Désactivation du Wi-Fi"
-rfkill block wifi
+sudo rfkill block wifi
 ifconfig wlan0 down
 
-# 10. Configuration du service gateway.service
-print_step "Configuration du service gateway.service"
-cp $(dirname "$0")/gateway.service /etc/systemd/system/
+# 11. Configuration du service passerelle.service
+print_step "Configuration du service passerelle.service"
+cp $dossierInstallation/passerelle.service /etc/systemd/system/
 systemctl daemon-reload
-systemctl enable gateway.service
-systemctl start gateway.service
+systemctl enable passerelle.service
+systemctl start passerelle.service
 
-# 11. Désactivation définitive du Wi-Fi
-print_step "Désactivation définitive du Wi-Fi"
-echo "blacklist brcmfmac" | tee -a /etc/modprobe.d/blacklist-wifi.conf
-echo "blacklist brcmutil" | tee -a /etc/modprobe.d/blacklist-wifi.conf
-update-initramfs -u
-
-# 12. Configuration du swap pour optimiser les performances
-print_step "Optimisation du swap"
-dphys-swapfile swapoff
-sed -i 's/CONF_SWAPSIZE=100/CONF_SWAPSIZE=1024/' /etc/dphys-swapfile
-dphys-swapfile setup
-dphys-swapfile swapon
-
-# 13. Nettoyage final
+# 12. Nettoyage final
 print_step "Nettoyage final"
 apt-get autoremove -y
 apt-get clean
 
 echo "========================================"
-echo "Configuration terminée avec succès !"
+echo -e "\033[32mConfiguration terminée avec succès !\033[0m"
 echo "----------------------------------------"
-echo "N'OUBLIEZ PAS DE MODIFIER LE MOT DE PASSE SSH"
+echo "Maintenant faire : 'sudo rasp-config'"
+echo "aller dans Performances -> Fan"
+echo "Changer paramètresactivation ventilateur a 80°C"
 echo "========================================"
-
+echo "Pensez a REDEMARRER le Raspberry Pi pour que tout les changements puissent se faire"
