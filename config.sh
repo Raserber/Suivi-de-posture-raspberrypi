@@ -4,7 +4,7 @@
 # Configuration post-installation pour Raspbian
 # =============================================
 
-dossierInstallation = "/home/admin/"
+dossierInstallation = "/home/admin"
 
 # Fonction pour afficher les étapes
 print_step() {
@@ -15,26 +15,20 @@ print_step() {
 
 # Fonction pour demander le réseau Wi-Fi et se connecter
 connect_wifi() {
-    while true; do
-        read -p "Entrez le nom du réseau Wi-Fi (SSID) : " ssid
-        read -s -p "Entrez le mot de passe Wi-Fi : " password
-        echo
-
-        # Configuration Wi-Fi
-        sudo raspi-config nonint do_wifi_ssid_passphrase $ssid "$password"
-
-
 
         # Redémarrer l'interface Wi-Fi
         wpa_cli -i wlan0 reconfigure
-        sleep 5
+        sleep 3
 
         # Vérifier la connexion
         if ping -c 4 google.com &> /dev/null; then
             echo "Connexion Wi-Fi réussie !"
             break
         else
-            echo "Échec de la connexion Wi-Fi. Veuillez réessayer."
+            echo ""
+            echo -e "\033[31mErreur : Échec de la connexion Wi-Fi. Veuillez réessayer. !\033[0m"
+            echo -e "-> \"sudo raspi-config\""
+            exit
         fi
     done
 }
@@ -56,8 +50,8 @@ sed -i 's/CONF_SWAPSIZE=100/CONF_SWAPSIZE=1024/' /etc/dphys-swapfile
 dphys-swapfile setup
 dphys-swapfile swapon
 
-# 3. Activation du Wi-Fi et connexion
-print_step "Activation du Wi-Fi et connexion"
+# 3. Activation du Wi-Fi et test de connexion
+print_step "Activation du Wi-Fi et test de connexion"
 rfkill unblock wifi
 connect_wifi
 
