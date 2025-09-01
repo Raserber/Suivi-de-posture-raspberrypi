@@ -30,7 +30,6 @@ connect_wifi() {
             echo -e "-> \"sudo raspi-config\""
             exit
         fi
-    done
 }
 
 # 1. Vérifier execution en tant que sudoer
