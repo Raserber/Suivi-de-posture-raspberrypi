@@ -212,8 +212,15 @@ class BLEDelegate(DefaultDelegate):
                 }
 
                 publish(f"{MQTT_TOPIC_BASE}/{self.name}/data/batterie", payload, retain=True)
-                with open("/home/admin/test.csv", "a") as f :
-                    f.write(f"{now_iso()}, {self.pourcentage}\n")
+
+                if (self.pourcentage >= 99) :
+                    with open("/home/admin/test.csv", "w") as f :
+                        f.write(f"{now_iso()}, {self.pourcentage}\n")
+
+                else :
+                    with open("/home/admin/test.csv", "a") as f :
+                        f.write(f"{now_iso()}, {self.pourcentage}\n")
+
 
         except Exception as e:
             log(f"Erreur notification {self.name}: {e}")
